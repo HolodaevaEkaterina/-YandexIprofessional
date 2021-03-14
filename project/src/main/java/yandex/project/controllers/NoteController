@@ -1,0 +1,62 @@
+package yandex.project.controllers;
+
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import yandex.project.dto.NoteDto;
+import yandex.project.entities.Note;
+import yandex.project.exceptions.NoteError;
+import yandex.project.exceptions.ResourceNotFoundException;
+import yandex.project.services.NoteService;
+
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/notes")
+@RequiredArgsConstructor
+public class NoteController {
+  private final NoteService noteService;
+
+  @GetMapping
+  public List<Note> getAllNotes() {
+    return noteService.findAll();
+  }
+
+  @GetMapping("/{id}")
+  public NoteDto getnoteById(@PathVariable Long id) {
+    Note note = noteService.getOneById(id).orElseThrow(() -> new ResourceNotFoundException("Unable to find note with id: " + id));
+    return new NoteDto(note);
+  }
+
+  @PostMapping
+  @ApiOperation("Creates a new note. If id != null, then throw bad request response")
+  public ResponseEntity<?> createNewNote(@RequestBody NoteDto p) {
+    if (p.getId() != null) {
+      return new ResponseEntity<>(new NoteError(HttpStatus.BAD_REQUEST.value(), "Id must be null for new entity"), HttpStatus.BAD_REQUEST);
+    }
+    return new ResponseEntity<>(new NoteDto(noteService.save(p)), HttpStatus.CREATED);
+  }
+
+  @PutMapping("/{id}")
+  @ApiOperation("Modify note")
+  public ResponseEntity<?> modifyNote(@RequestBody NoteDto p, @PathVariable Long id) {
+    if (p.getId() == null) {
+      return new ResponseEntity<>(new NoteError(HttpStatus.BAD_REQUEST.value(), "Id must be not null for new entity"), HttpStatus.BAD_REQUEST);
+    }
+    if (!noteService.existsById(id)) {
+      return new ResponseEntity<>(new NoteError(HttpStatus.BAD_REQUEST.value(), "Note with id: " + p.getId() + " doesn't exist"), HttpStatus.BAD_REQUEST);
+    }
+    return new ResponseEntity<>(new NoteDto(noteService.save(p)), HttpStatus.OK);
+  }
+
+  @DeleteMapping("/{id}")
+  @ApiOperation("Delete note")
+  public void deleteById(@ApiParam("Id of the note") @PathVariable Long id) {
+    noteService.deleteById(id);
+  }
+
+}
